@@ -4,11 +4,15 @@
 ---
 
 
-# ContentTools
+# ContentToolsA
 
-[![Build Status](https://travis-ci.org/GetmeUK/ContentTools.svg?branch=master)](https://travis-ci.org/GetmeUK/ContentTools)
+> A JS library for building WYSIWYG editors for HTML content. 
 
-> A JS library for building WYSIWYG editors for HTML content.
+This is a fork of [ContentTools](https://github.com/GetmeUK/ContentTools) expanded with:
+- sub/super-script tool
+- reference tool (insertion of link to a document/attachmwent already uploaded to server, also provides simple upload)
+- image-selector tool (insertion of image already available on server, also provides simple upload)
+- image-gallery tool (insertion of carousell with selection of images from server)
 
 <a href="http://getcontenttools.com"><img width="728" src="http://getcontenttools.com/images/github-splash.png" alt="Demo"></a>
 

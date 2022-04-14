@@ -16,24 +16,29 @@ ContentTools =
         [
             'bold',
             'italic',
+            'superscript',
+            'subscript',
             'link',
-            'align-left',
-            'align-center',
-            'align-right'
+            'reference'
         ], [
             'heading',
             'subheading',
             'paragraph',
+            'preformatted',
             'unordered-list',
             'ordered-list',
-            'table',
             'indent',
             'unindent',
-            'line-break'
+            'line-break',
+            'align-left',
+            'align-center',
+            'align-right'
         ], [
             'image',
+            'image-select',
+            'image-gallery',
             'video',
-            'preformatted'
+            'table'
         ], [
             'undo',
             'redo',

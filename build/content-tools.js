@@ -5569,7 +5569,7 @@
   ContentTools = {
     Tools: {},
     CANCEL_MESSAGE: 'Your changes have not been saved, do you really want to lose them?'.trim(),
-    DEFAULT_TOOLS: [['bold', 'italic', 'link', 'align-left', 'align-center', 'align-right'], ['heading', 'subheading', 'paragraph', 'unordered-list', 'ordered-list', 'table', 'indent', 'unindent', 'line-break'], ['image', 'video', 'preformatted'], ['undo', 'redo', 'remove']],
+    DEFAULT_TOOLS: [['bold', 'italic', 'superscript', 'subscript', 'link', 'reference'], ['heading', 'subheading', 'paragraph', 'preformatted', 'unordered-list', 'ordered-list', 'indent', 'unindent', 'line-break', 'align-left', 'align-center', 'align-right'], ['image', 'image-select', 'image-gallery', 'video', 'table'], ['undo', 'redo', 'remove']],
     DEFAULT_VIDEO_HEIGHT: 300,
     DEFAULT_VIDEO_WIDTH: 400,
     HIGHLIGHT_HOLD_DURATION: 2000,
@@ -7359,6 +7359,180 @@
     return CropMarksUI;
 
   })(ContentTools.AnchoredComponentUI);
+
+  ContentTools.ImageSelectDialog = (function(_super) {
+    __extends(ImageSelectDialog, _super);
+
+    function ImageSelectDialog() {
+      ImageSelectDialog.__super__.constructor.call(this, 'Select image');
+      this._imageURL = null;
+      this._imageSize = null;
+      this._state = 'empty';
+    }
+
+    ImageSelectDialog.prototype.clear = function() {
+      if (this._domImage) {
+        this._domImage.parentNode.removeChild(this._domImage);
+        this._domImage = null;
+      }
+      this._imageURL = null;
+      this._imageSize = null;
+      return this.state('empty');
+    };
+
+    ImageSelectDialog.prototype.mount = function() {
+      var domActions, domTools;
+      ImageSelectDialog.__super__.mount.call(this);
+      ContentEdit.addCSSClass(this._domElement, 'ct-image-dialog');
+      ContentEdit.addCSSClass(this._domElement, 'ct-image-dialog--empty');
+      ContentEdit.addCSSClass(this._domView, 'ct-image-dialog__view');
+      domTools = this.constructor.createDiv(['ct-control-group', 'ct-control-group--left']);
+      this._domControls.appendChild(domTools);
+      this._domRotateCCW = this.constructor.createDiv(['ct-control', 'ct-control--icon', 'ct-control--rotate-ccw']);
+      this._domRotateCCW.setAttribute('data-ct-tooltip', ContentEdit._('Rotate') + ' -90°');
+      domTools.appendChild(this._domRotateCCW);
+      domActions = this.constructor.createDiv(['ct-control-group', 'ct-control-group--right']);
+      this._domControls.appendChild(domActions);
+      this._domUpload = this.constructor.createDiv(['ct-control', 'ct-control--text', 'ct-control--search']);
+      this._domUpload.textContent = ContentEdit._('Upload');
+      domActions.appendChild(this._domUpload);
+      this._domInput = document.createElement('input');
+      this._domInput.setAttribute('class', 'ct-image-dialog__file-search');
+      this._domInput.setAttribute('name', 'file');
+      this._domInput.setAttribute('type', 'text');
+      this._domUpload.appendChild(this._domInput);
+      this._domInsert = this.constructor.createDiv(['ct-control', 'ct-control--text', 'ct-control--insert']);
+      this._domInsert.textContent = ContentEdit._('Insert');
+      domActions.appendChild(this._domInsert);
+      this._domCancelUpload = this.constructor.createDiv(['ct-control', 'ct-control--text', 'ct-control--cancel']);
+      this._domCancelUpload.textContent = ContentEdit._('Cancel');
+      domActions.appendChild(this._domCancelUpload);
+      this._domClear = this.constructor.createDiv(['ct-control', 'ct-control--text', 'ct-control--clear']);
+      this._domClear.textContent = ContentEdit._('Clear');
+      domActions.appendChild(this._domClear);
+      this._addDOMEventListeners();
+      return this.dispatchEvent(this.createEvent('imageselector.mount'));
+    };
+
+    ImageSelectDialog.prototype.populate = function(imageURL) {
+      this._imageURL = imageURL;
+      if (!this._domImage) {
+        this._domImage = this.constructor.createDiv(['ct-image-dialog__image']);
+        this._domView.appendChild(this._domImage);
+      }
+      this._domImage.style['background-image'] = "url(" + imageURL + ")";
+      return this.state('populated');
+    };
+
+    ImageSelectDialog.prototype.save = function(imageURL, imageSize, imageAttrs) {
+      return this.dispatchEvent(this.createEvent('save', {
+        'imageURL': imageURL,
+        'imageSize': imageSize,
+        'imageAttrs': imageAttrs
+      }));
+    };
+
+    ImageSelectDialog.prototype.state = function(state) {
+      var prevState;
+      if (state === void 0) {
+        return this._state;
+      }
+      if (this._state === state) {
+        return;
+      }
+      prevState = this._state;
+      this._state = state;
+      if (!this.isMounted()) {
+        return;
+      }
+      ContentEdit.addCSSClass(this._domElement, "ct-image-dialog--" + this._state);
+      return ContentEdit.removeCSSClass(this._domElement, "ct-image-dialog--" + prevState);
+    };
+
+    ImageSelectDialog.prototype.unmount = function() {
+      ImageSelectDialog.__super__.unmount.call(this);
+      this._domCancelUpload = null;
+      this._domClear = null;
+      this._domCrop = null;
+      this._domInput = null;
+      this._domInsert = null;
+      this._domRotateCCW = null;
+      this._domUpload = null;
+      return this.dispatchEvent(this.createEvent('imageselector.unmount'));
+    };
+
+    ImageSelectDialog.prototype._addDOMEventListeners = function() {
+      ImageSelectDialog.__super__._addDOMEventListeners.call(this);
+      this._domInput.addEventListener('change', (function(_this) {
+        return function(ev) {
+          var file;
+          file = ev.target.files[0];
+          if (!file) {
+            return;
+          }
+          ev.target.value = '';
+          if (ev.target.value) {
+            ev.target.type = 'text';
+            ev.target.type = 'file';
+          }
+          return _this.dispatchEvent(_this.createEvent('imageuploader.fileready', {
+            file: file
+          }));
+        };
+      })(this));
+      this._domCancelUpload.addEventListener('click', (function(_this) {
+        return function(ev) {
+          return _this.dispatchEvent(_this.createEvent('imageuploader.cancelupload'));
+        };
+      })(this));
+      this._domClear.addEventListener('click', (function(_this) {
+        return function(ev) {
+          _this.removeCropMarks();
+          return _this.dispatchEvent(_this.createEvent('imageuploader.clear'));
+        };
+      })(this));
+      this._domRotateCCW.addEventListener('click', (function(_this) {
+        return function(ev) {
+          _this.removeCropMarks();
+          return _this.dispatchEvent(_this.createEvent('imageuploader.rotateccw'));
+        };
+      })(this));
+      this._domRotateCW.addEventListener('click', (function(_this) {
+        return function(ev) {
+          _this.removeCropMarks();
+          return _this.dispatchEvent(_this.createEvent('imageuploader.rotatecw'));
+        };
+      })(this));
+      this._domCrop.addEventListener('click', (function(_this) {
+        return function(ev) {
+          if (_this._cropMarks) {
+            return _this.removeCropMarks();
+          } else {
+            return _this.addCropMarks();
+          }
+        };
+      })(this));
+      return this._domInsert.addEventListener('click', (function(_this) {
+        return function(ev) {
+          return _this.dispatchEvent(_this.createEvent('imageuploader.save'));
+        };
+      })(this));
+    };
+
+    return ImageSelectDialog;
+
+  })(ContentTools.DialogUI);
+
+  ContentTools.ImageGalleryDialog = (function(_super) {
+    __extends(ImageGalleryDialog, _super);
+
+    function ImageGalleryDialog() {
+      return ImageGalleryDialog.__super__.constructor.apply(this, arguments);
+    }
+
+    return ImageGalleryDialog;
+
+  })(ContentTools.DialogUI);
 
   ContentTools.LinkDialog = (function(_super) {
     var NEW_WINDOW_TARGET;
@@ -9557,6 +9731,44 @@
 
   })(ContentTools.Tools.Bold);
 
+  ContentTools.Tools.Superscript = (function(_super) {
+    __extends(Superscript, _super);
+
+    function Superscript() {
+      return Superscript.__super__.constructor.apply(this, arguments);
+    }
+
+    ContentTools.ToolShelf.stow(Superscript, 'superscript');
+
+    Superscript.label = 'Superscript';
+
+    Superscript.icon = 'superscript';
+
+    Superscript.tagName = 'sup';
+
+    return Superscript;
+
+  })(ContentTools.Tools.Bold);
+
+  ContentTools.Tools.Subscript = (function(_super) {
+    __extends(Subscript, _super);
+
+    function Subscript() {
+      return Subscript.__super__.constructor.apply(this, arguments);
+    }
+
+    ContentTools.ToolShelf.stow(Subscript, 'subscript');
+
+    Subscript.label = 'Subscript';
+
+    Subscript.icon = 'subscript';
+
+    Subscript.tagName = 'sub';
+
+    return Subscript;
+
+  })(ContentTools.Tools.Bold);
+
   ContentTools.Tools.Link = (function(_super) {
     __extends(Link, _super);
 
@@ -9775,6 +9987,76 @@
     };
 
     return Link;
+
+  })(ContentTools.Tools.Bold);
+
+  ContentTools.Tools.Reference = (function(_super) {
+    __extends(Reference, _super);
+
+    function Reference() {
+      return Reference.__super__.constructor.apply(this, arguments);
+    }
+
+    ContentTools.ToolShelf.stow(Reference, 'reference');
+
+    Reference.label = 'Referenc';
+
+    Reference.icon = 'reference';
+
+    Reference.tagName = 'ref';
+
+    Reference.getAttr = function(attrName, element, selection) {
+      var c, from, selectedContent, tag, to, _i, _j, _len, _len1, _ref, _ref1, _ref2;
+      _ref = selection.get(), from = _ref[0], to = _ref[1];
+      selectedContent = element.content.slice(from, to);
+      _ref1 = selectedContent.characters;
+      for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+        c = _ref1[_i];
+        if (!c.hasTags('ref')) {
+          continue;
+        }
+        _ref2 = c.tags();
+        for (_j = 0, _len1 = _ref2.length; _j < _len1; _j++) {
+          tag = _ref2[_j];
+          if (tag.name() === 'ref') {
+            return tag.attr(attrName);
+          }
+        }
+      }
+      return '';
+    };
+
+    Reference.canApply = function(element, selection) {
+      if (element.type() === 'Paragraph') {
+        return true;
+      } else {
+        return false;
+      }
+    };
+
+    Reference.isApplied = function(element, selection) {
+      if (element.isFixed() && element.tagName() === 'ref') {
+        return true;
+      } else {
+        return Reference.__super__.constructor.isApplied.call(this, element, selection);
+      }
+    };
+
+    Reference.apply = function(element, selection, callback) {
+      var applied, toolDetail;
+      toolDetail = {
+        'tool': this,
+        'element': element,
+        'selection': selection
+      };
+      if (!this.dispatchEditorEvent('tool-apply', toolDetail)) {
+        return;
+      }
+      applied = false;
+      callback(applied);
+    };
+
+    return Reference;
 
   })(ContentTools.Tools.Bold);
 
@@ -10525,6 +10807,176 @@
     };
 
     return Image;
+
+  })(ContentTools.Tool);
+
+  ContentTools.Tools.ImageSelect = (function(_super) {
+    __extends(ImageSelect, _super);
+
+    function ImageSelect() {
+      return ImageSelect.__super__.constructor.apply(this, arguments);
+    }
+
+    ContentTools.ToolShelf.stow(ImageSelect, 'image-select');
+
+    ImageSelect.label = 'Image select';
+
+    ImageSelect.icon = 'image-select';
+
+    ImageSelect.canApply = function(element, selection) {
+      if (element.isFixed()) {
+        if (element.type() !== 'ImageFixture') {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    ImageSelect.apply = function(element, selection, callback) {
+      var app, dialog, modal, toolDetail;
+      toolDetail = {
+        'tool': this,
+        'element': element,
+        'selection': selection
+      };
+      if (!this.dispatchEditorEvent('tool-apply', toolDetail)) {
+        return;
+      }
+      if (element.storeState) {
+        element.storeState();
+      }
+      app = ContentTools.EditorApp.get();
+      modal = new ContentTools.ModalUI();
+      dialog = new ContentTools.ImageSelectDialog();
+      dialog.addEventListener('cancel', (function(_this) {
+        return function() {
+          modal.hide();
+          dialog.hide();
+          if (element.restoreState) {
+            element.restoreState();
+          }
+          return callback(false);
+        };
+      })(this));
+      dialog.addEventListener('save', (function(_this) {
+        return function(ev) {
+          var detail, image, imageAttrs, imageSize, imageURL, index, node, _ref;
+          detail = ev.detail();
+          imageURL = detail.imageURL;
+          imageSize = detail.imageSize;
+          imageAttrs = detail.imageAttrs;
+          if (!imageAttrs) {
+            imageAttrs = {};
+          }
+          imageAttrs.height = imageSize[1];
+          imageAttrs.src = imageURL;
+          imageAttrs.width = imageSize[0];
+          if (element.type() === 'ImageFixture') {
+            element.src(imageURL);
+          } else {
+            image = new ContentEdit.Image(imageAttrs);
+            _ref = _this._insertAt(element), node = _ref[0], index = _ref[1];
+            node.parent().attach(image, index);
+            image.focus();
+          }
+          modal.hide();
+          dialog.hide();
+          callback(true);
+          return _this.dispatchEditorEvent('tool-applied', toolDetail);
+        };
+      })(this));
+      app.attach(modal);
+      app.attach(dialog);
+      modal.show();
+      return dialog.show();
+    };
+
+    return ImageSelect;
+
+  })(ContentTools.Tool);
+
+  ContentTools.Tools.ImageGallery = (function(_super) {
+    __extends(ImageGallery, _super);
+
+    function ImageGallery() {
+      return ImageGallery.__super__.constructor.apply(this, arguments);
+    }
+
+    ContentTools.ToolShelf.stow(ImageGallery, 'image-gallery');
+
+    ImageGallery.label = 'Image gallery';
+
+    ImageGallery.icon = 'image-gallery';
+
+    ImageGallery.canApply = function(element, selection) {
+      if (element.isFixed()) {
+        if (element.type() !== 'ImageFixture') {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    ImageGallery.apply = function(element, selection, callback) {
+      var app, dialog, modal, toolDetail;
+      toolDetail = {
+        'tool': this,
+        'element': element,
+        'selection': selection
+      };
+      if (!this.dispatchEditorEvent('tool-apply', toolDetail)) {
+        return;
+      }
+      if (element.storeState) {
+        element.storeState();
+      }
+      app = ContentTools.EditorApp.get();
+      modal = new ContentTools.ModalUI();
+      dialog = new ContentTools.ImageGalleryDialog();
+      dialog.addEventListener('cancel', (function(_this) {
+        return function() {
+          modal.hide();
+          dialog.hide();
+          if (element.restoreState) {
+            element.restoreState();
+          }
+          return callback(false);
+        };
+      })(this));
+      dialog.addEventListener('save', (function(_this) {
+        return function(ev) {
+          var detail, image, imageAttrs, imageSize, imageURL, index, node, _ref;
+          detail = ev.detail();
+          imageURL = detail.imageURL;
+          imageSize = detail.imageSize;
+          imageAttrs = detail.imageAttrs;
+          if (!imageAttrs) {
+            imageAttrs = {};
+          }
+          imageAttrs.height = imageSize[1];
+          imageAttrs.src = imageURL;
+          imageAttrs.width = imageSize[0];
+          if (element.type() === 'ImageFixture') {
+            element.src(imageURL);
+          } else {
+            image = new ContentEdit.Image(imageAttrs);
+            _ref = _this._insertAt(element), node = _ref[0], index = _ref[1];
+            node.parent().attach(image, index);
+            image.focus();
+          }
+          modal.hide();
+          dialog.hide();
+          callback(true);
+          return _this.dispatchEditorEvent('tool-applied', toolDetail);
+        };
+      })(this));
+      app.attach(modal);
+      app.attach(dialog);
+      modal.show();
+      return dialog.show();
+    };
+
+    return ImageGallery;
 
   })(ContentTools.Tool);
 

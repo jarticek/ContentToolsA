@@ -163,6 +163,25 @@ class ContentTools.Tools.Italic extends ContentTools.Tools.Bold
     @icon = 'italic'
     @tagName = 'i'
 
+class ContentTools.Tools.Superscript extends ContentTools.Tools.Bold
+
+    # Make the current selection of text (non)Superscript (e.g <sup>foo</sup>).
+
+    ContentTools.ToolShelf.stow(@, 'superscript')
+
+    @label = 'Superscript'
+    @icon = 'superscript'
+    @tagName = 'sup'
+
+class ContentTools.Tools.Subscript extends ContentTools.Tools.Bold
+
+    # Make the current selection of text (non)Subscript (e.g <sub>foo</sub>).
+
+    ContentTools.ToolShelf.stow(@, 'subscript')
+
+    @label = 'Subscript'
+    @icon = 'subscript'
+    @tagName = 'sub'
 
 class ContentTools.Tools.Link extends ContentTools.Tools.Bold
 
@@ -432,6 +451,62 @@ class ContentTools.Tools.Link extends ContentTools.Tools.Bold
         app.attach(dialog)
         modal.show()
         dialog.show()
+
+class ContentTools.Tools.Reference extends ContentTools.Tools.Bold
+
+    # Insert/Remove a reference.
+
+    ContentTools.ToolShelf.stow(@, 'reference')
+
+    @label = 'Referenc'
+    @icon = 'reference'
+    @tagName = 'ref'
+
+    @getAttr: (attrName, element, selection) ->
+        # Get an attribute for the element and selection
+
+        [from, to] = selection.get()
+        selectedContent = element.content.slice(from, to)
+        for c in selectedContent.characters
+            if not c.hasTags('ref')
+                continue
+
+            for tag in c.tags()
+                if tag.name() == 'ref'
+                    return tag.attr(attrName)
+
+        return ''
+
+    @canApply: (element, selection) ->
+        # Return true if the tool can be applied to the current
+        # element/selection.
+        if element.type() is 'Paragraph'
+            return true
+        else
+            return false
+
+    @isApplied: (element, selection) ->
+        # Return true if the tool is currently applied to the current
+        # element/selection.
+        if element.isFixed() and element.tagName() is 'ref'
+            return true
+        else
+            return super(element, selection)
+
+    @apply: (element, selection, callback) ->
+        # Dispatch `apply` event
+        toolDetail = {
+            'tool': this,
+            'element': element,
+            'selection': selection
+        }
+        if not @dispatchEditorEvent('tool-apply', toolDetail)
+            return
+
+        applied = false
+        #TODO all reference.apply
+        callback(applied)
+        return
 
 
 class ContentTools.Tools.Heading extends ContentTools.Tool
@@ -1159,6 +1234,196 @@ class ContentTools.Tools.Image extends ContentTools.Tool
 
         # Dialog
         dialog = new ContentTools.ImageDialog()
+
+        # Support cancelling the dialog
+        dialog.addEventListener 'cancel', () =>
+
+            modal.hide()
+            dialog.hide()
+
+            if element.restoreState
+                element.restoreState()
+
+            callback(false)
+
+        # Support saving the dialog
+        dialog.addEventListener 'save', (ev) =>
+            detail = ev.detail()
+            imageURL = detail.imageURL
+            imageSize = detail.imageSize
+            imageAttrs = detail.imageAttrs
+
+            if not imageAttrs
+                imageAttrs = {}
+
+            imageAttrs.height = imageSize[1]
+            imageAttrs.src = imageURL
+            imageAttrs.width = imageSize[0]
+
+            if element.type() is 'ImageFixture'
+                # Configure the image source against the fixture
+                element.src(imageURL)
+
+            else
+                # Create the new image
+                image = new ContentEdit.Image(imageAttrs)
+
+                # Find insert position
+                [node, index] = @_insertAt(element)
+                node.parent().attach(image, index)
+
+                # Focus the new image
+                image.focus()
+
+            modal.hide()
+            dialog.hide()
+
+            callback(true)
+
+            # Dispatch `applied` event
+            @dispatchEditorEvent('tool-applied', toolDetail)
+
+        # Show the dialog
+        app.attach(modal)
+        app.attach(dialog)
+        modal.show()
+        dialog.show()
+
+class ContentTools.Tools.ImageSelect extends ContentTools.Tool
+
+    # Insert an image selected from stored images. Requires a ImageSelect server API.
+
+    ContentTools.ToolShelf.stow(@, 'image-select')
+
+    @label = 'Image select'
+    @icon = 'image-select'
+
+    @canApply: (element, selection) ->
+        # Return true if the tool can be applied to the current element/selection.
+        if element.isFixed()
+            unless element.type() is 'ImageFixture'
+                return false
+        return true
+
+    @apply: (element, selection, callback) ->
+        # Dispatch `apply` event
+        toolDetail = {
+            'tool': this,
+            'element': element,
+            'selection': selection
+        }
+        if not @dispatchEditorEvent('tool-apply', toolDetail)
+            return
+
+        # If supported allow store the state for restoring once the dialog is
+        # cancelled.
+        if element.storeState
+            element.storeState()
+
+        # Set-up the dialog
+        app = ContentTools.EditorApp.get()
+
+        # Modal
+        modal = new ContentTools.ModalUI()
+
+        # Dialog
+        dialog = new ContentTools.ImageSelectDialog()
+
+        # Support cancelling the dialog
+        dialog.addEventListener 'cancel', () =>
+
+            modal.hide()
+            dialog.hide()
+
+            if element.restoreState
+                element.restoreState()
+
+            callback(false)
+
+        # Support saving the dialog
+        dialog.addEventListener 'save', (ev) =>
+            detail = ev.detail()
+            imageURL = detail.imageURL
+            imageSize = detail.imageSize
+            imageAttrs = detail.imageAttrs
+
+            if not imageAttrs
+                imageAttrs = {}
+
+            imageAttrs.height = imageSize[1]
+            imageAttrs.src = imageURL
+            imageAttrs.width = imageSize[0]
+
+            if element.type() is 'ImageFixture'
+                # Configure the image source against the fixture
+                element.src(imageURL)
+
+            else
+                # Create the new image
+                image = new ContentEdit.Image(imageAttrs)
+
+                # Find insert position
+                [node, index] = @_insertAt(element)
+                node.parent().attach(image, index)
+
+                # Focus the new image
+                image.focus()
+
+            modal.hide()
+            dialog.hide()
+
+            callback(true)
+
+            # Dispatch `applied` event
+            @dispatchEditorEvent('tool-applied', toolDetail)
+
+        # Show the dialog
+        app.attach(modal)
+        app.attach(dialog)
+        modal.show()
+        dialog.show()
+
+class ContentTools.Tools.ImageGallery extends ContentTools.Tool
+
+    # Insert an image selected from stored images. Requires a ImageSelect server API.
+
+    ContentTools.ToolShelf.stow(@, 'image-gallery')
+
+    @label = 'Image gallery'
+    @icon = 'image-gallery'
+
+    @canApply: (element, selection) ->
+        # Return true if the tool can be applied to the current
+        # element/selection.
+        if element.isFixed()
+            unless element.type() is 'ImageFixture'
+                return false
+        return true
+
+    @apply: (element, selection, callback) ->
+
+        # Dispatch `apply` event
+        toolDetail = {
+            'tool': this,
+            'element': element,
+            'selection': selection
+        }
+        if not @dispatchEditorEvent('tool-apply', toolDetail)
+            return
+
+        # If supported allow store the state for restoring once the dialog is
+        # cancelled.
+        if element.storeState
+            element.storeState()
+
+        # Set-up the dialog
+        app = ContentTools.EditorApp.get()
+
+        # Modal
+        modal = new ContentTools.ModalUI()
+
+        # Dialog
+        dialog = new ContentTools.ImageGalleryDialog()
 
         # Support cancelling the dialog
         dialog.addEventListener 'cancel', () =>
